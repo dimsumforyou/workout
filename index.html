@@ -68,6 +68,21 @@ h1 small{color:var(--steel);font-weight:600;font-size:.95rem;letter-spacing:.08e
 .exhead{padding:14px 14px 10px;display:flex;gap:10px;align-items:flex-start}
 .exnum{font-family:var(--disp);font-weight:700;font-size:.78rem;color:var(--dim);padding-top:3px;min-width:16px}
 .exname{font-family:var(--disp);font-weight:700;font-size:1.12rem;line-height:1.15;letter-spacing:.01em}
+.exname.swappable{cursor:pointer;display:inline-flex;align-items:center;gap:6px;border-bottom:1px dashed var(--line2);padding-bottom:1px}
+.exname.swappable .care{font-size:.7em;color:var(--dim);transition:transform .15s}
+.exname.swappable.open .care{transform:rotate(180deg)}
+.swapPill{font-size:.62rem;font-weight:600;letter-spacing:.03em;color:var(--gold);background:rgba(242,179,61,.1);border:1px solid rgba(242,179,61,.35);border-radius:6px;padding:2px 7px;margin-left:6px;text-transform:none;vertical-align:middle}
+.swapPanel{display:none;padding:10px 14px 4px;border-top:1px dashed var(--line)}
+.swapPanel.open{display:block}
+.swapPanel .swLabel{font-size:.68rem;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.swapOpts{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px}
+.swOpt{font-size:.78rem;font-weight:500;padding:7px 12px;border-radius:99px;border:1px solid var(--line2);background:var(--panel2);color:var(--bone)}
+.swOpt.cur{background:var(--gold);color:#141414;border-color:var(--gold);font-weight:700}
+.swOpt.addnew{color:var(--gold);border-style:dashed;background:transparent}
+.swAddRow{display:none;gap:8px;margin-bottom:10px}
+.swAddRow.open{display:flex}
+.swAddRow input{flex:1;background:var(--ink);border:1px solid var(--line);border-radius:9px;padding:9px 11px;color:var(--bone);font-size:.82rem}
+.swAddRow button{padding:9px 14px;border-radius:9px;background:var(--gold);color:#141414;font-weight:700;font-size:.78rem;border:none}
 .extags{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
 .tag{font-size:.66rem;font-weight:600;letter-spacing:.04em;padding:3px 8px;border-radius:6px;background:var(--panel2);color:var(--steel);border:1px solid var(--line)}
 .tag.tech{color:var(--red);border-color:rgba(232,91,65,.4);background:rgba(232,91,65,.08)}
@@ -644,15 +659,42 @@ function seedState(){
   SEED.forEach(([w,d,e,sets])=>{
     logs[`1.${w}.${d}.${e}`]={sets:sets.map(s=>({w:s[0],r:s[1],n:s[2]||null,done:true}))};
   });
-  return {cycle:1,week:10,day:'u1',logs,openNotes:{}};
+  return {cycle:1,week:10,day:'u1',logs,openNotes:{},slotOverride:{},customSubs:{}};
 }
 let S=store.load()||seedState();
 if(!S.logs)S=seedState();
+if(!S.slotOverride)S.slotOverride={};
+if(!S.customSubs)S.customSubs={};
 const save=()=>store.save(S);
 save();
 
+/* register every program-listed sub (and any previously saved custom subs) into EX
+   so progress charts, naming, and the picker work for them just like real exercises */
+function slugify(s){return (s||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')||('ex'+Date.now());}
+function registerEx(id,name,muscle){
+  if(!EX[id])EX[id]={n:name,m:muscle};
+}
+PROGRAM.forEach(b=>{
+  Object.values(b.days).forEach(d=>{
+    d.ex.forEach(x=>{
+      (x.sub||[]).forEach(name=>registerEx(slugify(name),name,EX[x.e].m));
+    });
+  });
+});
+Object.keys(S.customSubs).forEach(baseId=>{
+  S.customSubs[baseId].forEach(c=>registerEx(c.id,c.name,EX[baseId]?EX[baseId].m:'Other'));
+});
+
 const lk=(c,w,d,e)=>`${c}.${w}.${d}.${e}`;
 const getLog=(c,w,d,e)=>S.logs[lk(c,w,d,e)];
+const slotKey=(x)=>`${S.cycle}.${S.week}.${S.day}.${x.e}`;
+const effEx=(x)=>S.slotOverride[slotKey(x)]||x.e;
+function swapOptions(x){
+  const opts=[{id:x.e,name:EX[x.e].n}];
+  (x.sub||[]).forEach(name=>{const id=slugify(name); if(!opts.some(o=>o.id===id))opts.push({id,name});});
+  (S.customSubs[x.e]||[]).forEach(c=>{ if(!opts.some(o=>o.id===c.id))opts.push({id:c.id,name:c.name}); });
+  return opts;
+}
 
 /* ---------------- helpers ---------------- */
 const $=s=>document.querySelector(s);
@@ -766,13 +808,15 @@ function renderExercises(){
   const def=currentDayDef();
   const list=$('#exList'); list.innerHTML='';
   def.ex.forEach((x,i)=>{
-    const key=lk(S.cycle,S.week,S.day,x.e);
+    const eff=effEx(x);
+    const swapped=eff!==x.e;
+    const key=lk(S.cycle,S.week,S.day,eff);
     let log=S.logs[key];
     const nSets=setsForWeek(x,S.week);
     if(!log){log={sets:[]};}
     while(log.sets.length<nSets)log.sets.push({w:null,r:null,n:null,done:false});
     const tech=INTRO_WEEKS.includes(S.week)?null:x.t;
-    const prev=prevSession(x.e,S.cycle,S.week);
+    const prev=prevSession(eff,S.cycle,S.week);
     const complete=log.sets.slice(0,nSets).every(s=>s.done&&(s.r!=null||s.w!=null))&&log.sets.some(s=>s.done);
 
     const card=el('div','ex'+(complete?' complete':''));
@@ -781,7 +825,7 @@ function renderExercises(){
       <div class="exhead">
         <div class="exnum">${String(i+1).padStart(2,'0')}</div>
         <div style="flex:1;min-width:0">
-          <div class="exname">${EX[x.e].n}</div>
+          <div class="exname swappable" data-swtoggle>${EX[eff].n}<span class="care">⌄</span>${swapped?'<span class="swapPill">swapped</span>':''}</div>
           <div class="extags">
             <span class="tag">${nSets} × ${x.r}</span>
             <span class="tag">${rpe}</span>
@@ -789,9 +833,17 @@ function renderExercises(){
             <button class="tag rest" data-rest>${x.rest} ⏱</button>
           </div>
         </div>
-        <div class="spark">${sparkSVG(x.e)}${deltaHTML(x.e)}</div>
+        <div class="spark">${sparkSVG(eff)}${deltaHTML(eff)}</div>
       </div>
-      ${prev?`<div class="lastline">Last · C${prev.c} W${prev.w}: <b>${prev.sets.filter(s=>s.r!=null||s.w!=null).map(s=>`${fmtW(s.w)}×${s.r??'?'}`).join(' · ')}</b>${isPR(x.e,prev.c,prev.w)?' <span class="pr">PR</span>':''}</div>`:''}
+      <div class="swapPanel" data-swpanel>
+        <div class="swLabel">Swap this exercise ${swapped?`— default is ${EX[x.e].n}`:'(same sets/reps/RPE prescription carries over)'}</div>
+        <div class="swapOpts" data-swopts></div>
+        <div class="swAddRow" data-swaddrow>
+          <input type="text" placeholder="Type a new exercise name…" data-swinput>
+          <button data-swsave>Add</button>
+        </div>
+      </div>
+      ${prev?`<div class="lastline">Last · C${prev.c} W${prev.w}: <b>${prev.sets.filter(s=>s.r!=null||s.w!=null).map(s=>`${fmtW(s.w)}×${s.r??'?'}`).join(' · ')}</b>${isPR(eff,prev.c,prev.w)?' <span class="pr">PR</span>':''}</div>`:''}
       <div class="sets" data-sets></div>
       <div class="exfoot">
         <button class="mini" data-add>+ Set</button>
@@ -801,6 +853,44 @@ function renderExercises(){
         <p>${x.nt}</p>
         ${x.sub.length?`<div class="subs"><b>Subs:</b> ${x.sub.join(' · ')} &nbsp;·&nbsp; <b>Warm-up:</b> ${x.w} set${x.w==='1'?'':'s'}</div>`:`<div class="subs"><b>Warm-up:</b> ${x.w} sets</div>`}
       </div>`;
+
+    /* ---- swap panel wiring ---- */
+    const swPanel=card.querySelector('[data-swpanel]');
+    const swTitle=card.querySelector('[data-swtoggle]');
+    const swAddRow=card.querySelector('[data-swaddrow]');
+    const swInput=card.querySelector('[data-swinput]');
+    const drawSwapOpts=()=>{
+      const optsEl=card.querySelector('[data-swopts]');
+      optsEl.innerHTML='';
+      swapOptions(x).forEach(o=>{
+        const b=el('button','swOpt'+(o.id===eff?' cur':''),o.name);
+        b.onclick=()=>{
+          const sk=slotKey(x);
+          if(o.id===x.e)delete S.slotOverride[sk]; else S.slotOverride[sk]=o.id;
+          save(); renderExercises();
+        };
+        optsEl.appendChild(b);
+      });
+      const addBtn=el('button','swOpt addnew','+ New exercise');
+      addBtn.onclick=()=>{swAddRow.classList.toggle('open'); if(swAddRow.classList.contains('open'))swInput.focus();};
+      optsEl.appendChild(addBtn);
+    };
+    drawSwapOpts();
+    swTitle.onclick=()=>{swTitle.classList.toggle('open'); swPanel.classList.toggle('open');};
+    card.querySelector('[data-swsave]').onclick=()=>{
+      const name=swInput.value.trim();
+      if(!name)return;
+      let id=slugify(name);
+      let n=2; while(EX[id]&&EX[id].n!==name){id=slugify(name)+'-'+n;n++;}
+      registerEx(id,name,EX[x.e].m);
+      if(!S.customSubs[x.e])S.customSubs[x.e]=[];
+      if(!S.customSubs[x.e].some(c=>c.id===id))S.customSubs[x.e].push({id,name});
+      S.slotOverride[slotKey(x)]=id;
+      save();
+      swInput.value='';
+      renderExercises();
+    };
+    swInput.addEventListener('keydown',ev=>{if(ev.key==='Enter')card.querySelector('[data-swsave]').click();});
 
     const setsEl=card.querySelector('[data-sets]');
     const drawSets=()=>{
@@ -823,7 +913,7 @@ function renderExercises(){
             if(s.r==null&&inputs[1].placeholder!=='reps'){const v=parseInt(inputs[1].placeholder,10);if(!isNaN(v)){s.r=v;inputs[1].value=v;}}
           }
           s.done=!s.done; commit();
-          if(s.done)startTimer(x.rest,EX[x.e].n);
+          if(s.done)startTimer(x.rest,EX[eff].n);
           drawSets(); renderSess();
           card.classList.toggle('complete',log.sets.slice(0,nSets).every(q=>q.done&&(q.r!=null||q.w!=null)));
         };
@@ -838,7 +928,7 @@ function renderExercises(){
       S.openNotes[x.e]=!S.openNotes[x.e];save();
       card.querySelector('[data-nt]').classList.toggle('open');
     };
-    card.querySelector('[data-rest]').onclick=()=>startTimer(x.rest,EX[x.e].n);
+    card.querySelector('[data-rest]').onclick=()=>startTimer(x.rest,EX[eff].n);
     list.appendChild(card);
   });
 }
