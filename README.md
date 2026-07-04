@@ -31,6 +31,16 @@ From then on: every logged set auto-pushes to the sheet (2.5s debounce), the app
 
 Site updates are separate from data — pushing a new `index.html` to GitHub never touches your logs.
 
+## Swapping an exercise (machine taken, equipment broken, etc.)
+
+Tap any exercise title in the Train tab — it expands a swap panel right under it:
+
+- **Sub options** — pulled straight from Nippard's own substitution list for that slot, so you're always picking something built for the same target/purpose.
+- **+ New exercise** — type in anything not listed (e.g. a home-gym stand-in). It's saved permanently to that slot's dropdown, so it's there to pick again in any future week without retyping.
+- The sets/reps/RPE/rest prescription stays the same as the slot calls for — only the movement changes.
+- The swap applies to that specific week's session only; other weeks keep showing the default (or whatever you separately picked for them). A gold "swapped" tag marks any session where you're off the default, and tapping the original name again resets it.
+- Progress is tracked per-movement, so a substitute builds its own chart in the Progress tab rather than muddying the main lift's history — pick the swapped name from the exercise picker there to see it.
+
 ## How data works
 
 - Logs save automatically to the browser's local storage on your phone — no backend, nothing leaves your device.
