@@ -177,6 +177,11 @@ nav svg{width:22px;height:22px}
 .syncCard{margin:16px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:10px}
 .syncCard .t{font-family:var(--disp);font-weight:600;font-size:1rem;letter-spacing:.02em;text-transform:uppercase;display:flex;align-items:center;gap:8px}
 .syncCard .d{color:var(--dim);font-size:.8rem;font-family:var(--body);line-height:1.5;margin-top:4px}
+.syncSteps{padding-left:18px;margin:8px 0 4px;display:flex;flex-direction:column;gap:5px}
+.syncSteps li{font-size:.78rem;color:var(--steel);line-height:1.5}
+.syncSteps b,.syncNote b{color:var(--bone);font-weight:600}
+.syncSteps code,.syncNote code{font-family:var(--mono);background:var(--chip);padding:1px 5px;border-radius:4px;color:var(--bone);font-size:.72rem}
+.syncNote{margin-top:2px;font-size:.72rem}
 .syncPill{font-family:var(--disp);font-size:.6rem;padding:2px 8px;border-radius:var(--rf);letter-spacing:.06em;font-weight:600}
 .syncPill.off{background:var(--chip);color:var(--dim)}
 .syncPill.on{background:var(--accent-dim);color:var(--accent)}
@@ -255,7 +260,15 @@ nav svg{width:22px;height:22px}
   <div class="syncCard">
     <div class="syncHead">
       <div class="t">Cloud sync <span id="syncStatus" class="syncPill off">off</span></div>
-      <div class="d">Sync logs through your own Google Sheet so phone and laptop share one history. Paste your Apps Script web app URL and secret below (setup guide in the repo README).</div>
+      <div class="d">Sync logs through your own Google Sheet so phone and laptop share one history. Not connected yet? One-time setup (~3 min), no coding required:</div>
+      <ol class="syncSteps">
+        <li>Create a new Google Sheet, then open <b>Extensions → Apps Script</b></li>
+        <li>Delete the sample code, paste in <code>Code.gs</code> from this repo</li>
+        <li>Change the <code>SECRET</code> line near the top to your own random string — this is what goes in the "secret" field below</li>
+        <li><b>Deploy → New deployment</b> → type <b>Web app</b> → Execute as <b>Me</b> → Who has access <b>Anyone</b> → Deploy (approve the permission prompt)</li>
+        <li>Copy the URL ending in <code>/exec</code> and paste it below, along with your secret → tap <b>Connect</b></li>
+      </ol>
+      <div class="d syncNote">Made a change to the script later? You must redeploy for it to take effect: <b>Deploy → Manage deployments → pencil icon → Version: New version → Deploy</b>. Just saving the script does nothing to the live URL. Full walkthrough in the repo README.</div>
     </div>
     <input class="syncIn" id="syncUrl" type="url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off">
     <input class="syncIn" id="syncToken" type="text" placeholder="Secret (must match SECRET in the script)" autocomplete="off">

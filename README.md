@@ -21,6 +21,21 @@ Makes your logs live across phone + laptop, with the Google Sheet as your person
 
 From then on: every logged set auto-pushes to the sheet (2.5s debounce), the app pulls on open and whenever you return to the tab, and newest data wins. The script manages two tabs automatically: **data** (raw state, chunked across rows to stay under Sheets' 50k-per-cell limit — years of logs are fine; don't hand-edit) and **log** (human-readable mirror: one row per exercise per session with cycle, week, day, sets, top set, and notes — regenerated on every sync).
 
+### If you edit the script later
+
+Saving the script in the Apps Script editor does **not** update the live `/exec` URL. Any time you change `Code.gs` (a new `SECRET`, a bug fix, whatever), you must push a new version to the *existing* deployment:
+
+**Deploy → Manage deployments → pencil icon → Version: New version → Deploy.**
+
+This keeps the same `/exec` URL, so you don't need to update anything in the app. Using **Deploy → New deployment** instead creates a brand-new, different URL — if you do that, you'll need to paste the new URL into the app's Cloud sync field again.
+
+### Troubleshooting
+
+- **Status shows "error" with a message like `bad token`:** the secret pasted into the app doesn't match `SECRET` in the deployed script exactly. Re-copy it — special characters (`&`, `*`, etc.) are fine, the app handles them for you.
+- **Status shows "error" with `read failed: ...`:** something non-JSON ended up in the `data` tab (a stray label, a manually typed cell). Select all the content in that tab and delete it, then tap **Sync now** — the next successful push will repopulate it correctly.
+- **Want to check the backend directly, bypassing the app?** Visit `your-exec-url?token=your-secret` in a browser (URL-encode special characters in the secret, e.g. `&` → `%26`, `*` → `%2A`). You'll get the raw JSON response: `{"state": null}` means nothing's synced yet, `{"state": {...}}` means it's working, `{"error": "bad token"}` means the token doesn't match.
+- **Double-check you're editing the right script.** Opening `script.google.com` directly lists all your Apps Script projects — container-bound scripts show up there too, but a brand-new "Untitled project" you accidentally created isn't connected to your Sheet at all. Open Apps Script *from inside the actual Sheet* (Extensions → Apps Script) to be sure you're editing the one that's actually deployed.
+
 ### Security — who can touch your data
 
 - **The web app URL alone is useless without the secret.** Every read and write requires `token` to match `SECRET` in the script; wrong or missing token gets `{error: 'bad token'}` and nothing else. "Anyone has access" in the deploy settings just means Google doesn't require a sign-in — your secret is the actual lock.
