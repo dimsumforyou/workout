@@ -29,8 +29,8 @@ input,button,select{font-family:inherit;color:inherit}
 button{cursor:pointer;border:none;background:none}
 
 /* ---------- header ---------- */
-header{padding:14px 16px;position:sticky;top:0;background:var(--ink);border-bottom:1px solid var(--line);z-index:20;display:flex;align-items:center;gap:10px}
-.eyebrow{font-family:var(--disp);font-weight:600;letter-spacing:.16em;font-size:.6rem;color:var(--dim);text-transform:uppercase;position:absolute;top:6px;left:16px}
+header{padding:calc(14px + env(safe-area-inset-top)) 16px 14px;position:sticky;top:0;background:var(--ink);border-bottom:1px solid var(--line);z-index:20;display:flex;align-items:flex-end;gap:10px}
+.eyebrow{font-family:var(--disp);font-weight:600;letter-spacing:.16em;font-size:.6rem;color:var(--dim);text-transform:uppercase;position:absolute;top:calc(6px + env(safe-area-inset-top));left:16px}
 h1{font-family:var(--disp);font-weight:600;font-size:1.15rem;letter-spacing:.02em;line-height:1;text-transform:uppercase;margin-top:10px;flex:1}
 h1 small{display:none}
 .cycle-pill{margin-top:10px;font-family:var(--mono);font-weight:600;font-size:.72rem;letter-spacing:.04em;color:var(--steel);border:1px solid var(--line);border-radius:var(--rf);padding:5px 11px;background:var(--panel)}
