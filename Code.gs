@@ -83,7 +83,13 @@ function readState() {
   const chunks = sh.getRange(1, 1, sh.getLastRow(), 1).getValues()
     .map(r => r[0]).filter(v => v !== '' && v != null);
   if (!chunks.length) return null;
-  return JSON.parse(chunks.join(''));
+  try {
+    return JSON.parse(chunks.join(''));
+  } catch (err) {
+    // Tab has non-JSON content (stray label, partial write, manual edit).
+    // Treat as "no data yet" instead of blocking every future sync.
+    return null;
+  }
 }
 
 function writeState(state) {
