@@ -109,6 +109,9 @@ h1 small{display:none}
 .exfoot{display:flex;gap:8px;padding:6px 14px 14px}
 .mini{font-family:var(--disp);font-weight:600;font-size:.76rem;letter-spacing:.04em;color:var(--steel);border:1px dashed var(--line2);border-radius:var(--rs);padding:8px 12px;text-transform:uppercase}
 .mini:active{color:var(--bone)}
+.clearDayWrap{padding:4px 16px 4px}
+.clearDayBtn{width:100%;padding:12px;border-radius:var(--rs);border:1px dashed rgba(224,162,61,.4);background:transparent;color:var(--warn);font-family:var(--disp);font-weight:600;font-size:.76rem;letter-spacing:.05em;text-transform:uppercase}
+.clearDayBtn:active{background:var(--warn-dim)}
 .exnotes{padding:0 14px 14px;display:none}
 .exnotes.open{display:block}
 .exnotes p{font-size:.8rem;font-family:var(--body);color:var(--steel);line-height:1.5;padding:10px 12px;background:var(--panel2);border-radius:var(--rs)}
@@ -212,6 +215,7 @@ nav svg{width:22px;height:22px}
   <div class="days" id="dayTabs"></div>
   <div class="sess" id="sessCard"></div>
   <div class="exlist" id="exList"></div>
+  <div class="clearDayWrap"><button class="clearDayBtn" id="btnClearDay">Clear this day's logged numbers</button></div>
   <div style="height:24px"></div>
 </div>
 
@@ -950,6 +954,14 @@ function renderExercises(){
   });
 }
 function renderTrain(){renderWeeks();renderDays();renderSess();renderExercises();}
+
+$('#btnClearDay').onclick=()=>{
+  const def=currentDayDef();
+  if(!confirm(`Clear all logged numbers for ${def.name} · Week ${S.week}? This can't be undone.`))return;
+  def.ex.forEach(x=>{ delete S.logs[lk(S.cycle,S.week,S.day,effEx(x))]; });
+  save();
+  renderTrain();
+};
 
 /* ---------------- rest timer ---------------- */
 let timerIv=null;
