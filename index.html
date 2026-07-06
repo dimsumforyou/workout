@@ -287,12 +287,12 @@ nav svg{width:22px;height:22px}
     <div class="syncActions" id="syncActions" style="display:none">
       <div class="syncMeta" id="syncMeta"></div>
       <div class="syncActionRow">
-        <button class="sBtn" id="btnSyncPull">Pull from sheet</button>
-        <div class="syncCap">Loads the sheet's data onto this device — only replaces what's here if the sheet's copy is newer.</div>
+        <button class="sBtn" id="btnSyncPull">Download from sheet</button>
+        <div class="syncCap">Brings the sheet's data onto this device — only replaces what's here if the sheet's copy is newer.</div>
       </div>
       <div class="syncActionRow">
-        <button class="sBtn" id="btnSyncPush">Push to sheet</button>
-        <div class="syncCap">Overwrites the sheet with this device's current data, no matter what's already there.</div>
+        <button class="sBtn" id="btnSyncPush">Upload to sheet</button>
+        <div class="syncCap">Sends this device's data to the sheet, overwriting whatever's there now.</div>
       </div>
       <button class="sBtn warn" id="btnSyncOff">Disconnect</button>
     </div>
@@ -1208,7 +1208,7 @@ const sync={
     if(j.state&&(j.state.updatedAt||0)>(S.updatedAt||0)){
       S=j.state; try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} mem=S;
       renderAll(); renderSyncUI();
-      this.status('on','Pulled newer data from the sheet.');
+      this.status('on','Downloaded newer data from the sheet.');
     } else {
       this.status('on','Nothing newer on the sheet — this device is already up to date.');
     }
@@ -1219,7 +1219,7 @@ const sync={
     const res=await fetch(c.url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({token:c.token,state:S})});
     const j=await res.json();
     if(j.error)throw new Error(j.error);
-    this.status('on','Saved to sheet '+new Date().toLocaleTimeString());
+    this.status('on','Uploaded to sheet '+new Date().toLocaleTimeString());
   }
 };
 let syncT=null;
@@ -1246,7 +1246,7 @@ $('#btnSyncSave').onclick=()=>{
   if(!url.startsWith('https://script.google.com/')){sync.status('err','URL should be an Apps Script /exec link.');return;}
   sync.setCfg({url,token});
   renderSyncUI();
-  sync.status('idle',"Saved. Tap Pull to check the sheet, or Push to send this device's data.");
+  sync.status('idle',"Saved. Tap Download to check the sheet, or Upload to send this device's data.");
 };
 $('#btnSyncPull').onclick=()=>sync.pull().catch(e=>sync.status('err',e.message));
 $('#btnSyncPush').onclick=()=>sync.push().catch(e=>sync.status('err',e.message));

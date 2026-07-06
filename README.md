@@ -17,9 +17,9 @@ Makes your logs live across phone + laptop, with the Google Sheet as your person
 2. **Extensions → Apps Script** → delete the sample code → paste in `Code.gs` from this repo.
 3. Change `SECRET` in the script to your own random string.
 4. **Deploy → New deployment → Web app** → Execute as: **Me** · Who has access: **Anyone** → Deploy, authorize, copy the URL ending in `/exec`.
-5. In Iron Log → **Data tab → Cloud sync**: paste the URL and your secret → **Connect**.
+5. In Iron Log → **Data tab → Cloud sync**: paste the URL and your secret → **Connect**. This just saves your credentials — it doesn't upload or download anything by itself. Two buttons then appear: **Download from sheet** (brings the sheet's data onto this device, only if the sheet's copy is newer) and **Upload to sheet** (sends this device's data to the sheet, overwriting what's there). Use Download first on a new device to check for existing data before Uploading.
 
-From then on: every logged set auto-pushes to the sheet (2.5s debounce), the app pulls on open and whenever you return to the tab, and newest data wins. The script manages two tabs automatically: **data** (raw state, chunked across rows to stay under Sheets' 50k-per-cell limit — years of logs are fine; don't hand-edit) and **log** (human-readable mirror: one row per exercise per session with cycle, week, day, sets, top set, and notes — regenerated on every sync).
+From then on: every logged set auto-uploads to the sheet in the background (2.5s debounce), the app auto-downloads on open and whenever you return to the tab, and newest data wins — the Data tab shows "This device's data last changed: X ago" so you can see which way a manual Download/Upload would go. The script manages two tabs automatically: **data** (raw state, chunked across rows to stay under Sheets' 50k-per-cell limit — years of logs are fine; don't hand-edit) and **log** (human-readable mirror: one row per exercise per session with cycle, week, day, sets, top set, and notes — regenerated on every sync).
 
 ### If you edit the script later
 
@@ -32,7 +32,7 @@ This keeps the same `/exec` URL, so you don't need to update anything in the app
 ### Troubleshooting
 
 - **Status shows "error" with a message like `bad token`:** the secret pasted into the app doesn't match `SECRET` in the deployed script exactly. Re-copy it — special characters (`&`, `*`, etc.) are fine, the app handles them for you.
-- **Status shows "error" with `read failed: ...`:** something non-JSON ended up in the `data` tab (a stray label, a manually typed cell). Select all the content in that tab and delete it, then tap **Sync now** — the next successful push will repopulate it correctly.
+- **Status shows "error" with `read failed: ...`:** something non-JSON ended up in the `data` tab (a stray label, a manually typed cell). Select all the content in that tab and delete it, then tap **Upload to sheet** — the next successful upload will repopulate it correctly.
 - **Want to check the backend directly, bypassing the app?** Visit `your-exec-url?token=your-secret` in a browser (URL-encode special characters in the secret, e.g. `&` → `%26`, `*` → `%2A`). You'll get the raw JSON response: `{"state": null}` means nothing's synced yet, `{"state": {...}}` means it's working, `{"error": "bad token"}` means the token doesn't match.
 - **Double-check you're editing the right script.** Opening `script.google.com` directly lists all your Apps Script projects — container-bound scripts show up there too, but a brand-new "Untitled project" you accidentally created isn't connected to your Sheet at all. Open Apps Script *from inside the actual Sheet* (Extensions → Apps Script) to be sure you're editing the one that's actually deployed.
 
