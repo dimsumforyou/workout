@@ -187,6 +187,7 @@ nav svg{width:22px;height:22px}
 .syncNote{margin-top:2px;font-size:.72rem}
 .syncPill{font-family:var(--disp);font-size:.6rem;padding:2px 8px;border-radius:var(--rf);letter-spacing:.06em;font-weight:600}
 .syncPill.off{background:var(--chip);color:var(--dim)}
+.syncPill.idle{background:var(--chip);color:var(--steel)}
 .syncPill.on{background:var(--accent-dim);color:var(--accent)}
 .syncPill.err{background:var(--warn-dim);color:var(--warn)}
 .syncPill.busy{background:var(--chip);color:var(--steel)}
@@ -196,6 +197,10 @@ nav svg{width:22px;height:22px}
 .sBtn{flex:1;padding:11px;border-radius:var(--rs);border:1px solid var(--line);background:var(--ink);color:var(--bone);font-weight:600;font-size:.82rem;font-family:var(--body)}
 .sBtn.gold{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
 .sBtn.warn{color:var(--warn);border-color:rgba(224,162,61,.4)}
+.syncActions{display:flex;flex-direction:column;gap:10px}
+.syncActionRow{display:flex;flex-direction:column;gap:5px}
+.syncCap{font-size:.7rem;color:var(--dim);line-height:1.4;padding:0 2px}
+.syncMeta{font-size:.72rem;color:var(--steel);background:var(--panel2);border:1px solid var(--line);border-radius:var(--rs);padding:8px 10px}
 .syncMsg{color:var(--dim);font-size:.75rem;font-family:var(--body);min-height:1em}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -278,8 +283,18 @@ nav svg{width:22px;height:22px}
     <input class="syncIn" id="syncToken" type="text" placeholder="Secret (must match SECRET in the script)" autocomplete="off">
     <div class="syncBtns">
       <button class="sBtn gold" id="btnSyncSave">Connect</button>
-      <button class="sBtn" id="btnSyncNow" style="display:none">Sync now</button>
-      <button class="sBtn warn" id="btnSyncOff" style="display:none">Disconnect</button>
+    </div>
+    <div class="syncActions" id="syncActions" style="display:none">
+      <div class="syncMeta" id="syncMeta"></div>
+      <div class="syncActionRow">
+        <button class="sBtn" id="btnSyncPull">Download from sheet</button>
+        <div class="syncCap">Brings the sheet's data onto this device — only replaces what's here if the sheet's copy is newer.</div>
+      </div>
+      <div class="syncActionRow">
+        <button class="sBtn" id="btnSyncPush">Upload to sheet</button>
+        <div class="syncCap">Sends this device's data to the sheet, overwriting whatever's there now.</div>
+      </div>
+      <button class="sBtn warn" id="btnSyncOff">Disconnect</button>
     </div>
     <div class="syncMsg" id="syncMsg"></div>
   </div>
@@ -671,7 +686,7 @@ const KEY='ironlog.v1';
 let mem=null;
 const store={
   load(){ try{const raw=localStorage.getItem(KEY); if(raw) return JSON.parse(raw);}catch(e){} return mem; },
-  save(d){ d.updatedAt=Date.now(); mem=d; try{localStorage.setItem(KEY,JSON.stringify(d));}catch(e){} if(window.__syncQueue)window.__syncQueue(); },
+  save(d){ mem=d; try{localStorage.setItem(KEY,JSON.stringify(d));}catch(e){} if(window.__syncQueue)window.__syncQueue(); },
   ok(){ try{localStorage.setItem('__t','1');localStorage.removeItem('__t');return true;}catch(e){return false;} }
 };
 
@@ -687,6 +702,11 @@ if(!S.logs)S=seedState();
 if(!S.slotOverride)S.slotOverride={};
 if(!S.customSubs)S.customSubs={};
 const save=()=>store.save(S);
+/* touch() marks a REAL content change (a logged set, a swap, a cycle reset...).
+   Plain save() just persists (navigating weeks/days, re-saving on load) without
+   affecting which device "wins" a sync conflict — merely opening the app on a
+   device should never make its data look newer than another device's real logs. */
+const touch=()=>{ S.updatedAt=Date.now(); save(); };
 save();
 
 /* register every program-listed sub (and any previously saved custom subs) into EX
@@ -888,7 +908,7 @@ function renderExercises(){
         b.onclick=()=>{
           const sk=slotKey(x);
           if(o.id===x.e)delete S.slotOverride[sk]; else S.slotOverride[sk]=o.id;
-          save(); renderExercises();
+          touch(); renderExercises();
         };
         optsEl.appendChild(b);
       });
@@ -907,7 +927,7 @@ function renderExercises(){
       if(!S.customSubs[x.e])S.customSubs[x.e]=[];
       if(!S.customSubs[x.e].some(c=>c.id===id))S.customSubs[x.e].push({id,name});
       S.slotOverride[slotKey(x)]=id;
-      save();
+      touch();
       swInput.value='';
       renderExercises();
     };
@@ -941,7 +961,7 @@ function renderExercises(){
         setsEl.appendChild(row);
       });
     };
-    const commit=()=>{S.logs[key]=log;save();};
+    const commit=()=>{S.logs[key]=log;touch();};
     drawSets();
 
     card.querySelector('[data-add]').onclick=()=>{log.sets.push({w:null,r:null,n:null,done:false});commit();drawSets();};
@@ -959,7 +979,7 @@ $('#btnClearDay').onclick=()=>{
   const def=currentDayDef();
   if(!confirm(`Clear all logged numbers for ${def.name} · Week ${S.week}? This can't be undone.`))return;
   def.ex.forEach(x=>{ delete S.logs[lk(S.cycle,S.week,S.day,effEx(x))]; });
-  save();
+  touch();
   renderTrain();
 };
 
@@ -1139,17 +1159,17 @@ $('#fileImport').onchange=e=>{
   rd.onload=()=>{ try{
     const d=JSON.parse(rd.result);
     if(!d.logs)throw 0;
-    S=d; save(); renderAll();
+    S=d; touch(); renderAll();
     alert('Backup imported.');
   }catch(err){alert('That file could not be read as an Iron Log backup.');}};
   rd.readAsText(f);
 };
 $('#btnReset').onclick=()=>{
-  if(confirm('Wipe everything and reload the original spreadsheet data?')){S=seedState();save();renderAll();}
+  if(confirm('Wipe everything and reload the original spreadsheet data?')){S=seedState();touch();renderAll();}
 };
 $('#btnNewCycle').onclick=()=>{
   if(confirm(`Start Cycle ${S.cycle+1}? Week resets to 1; all Cycle ${S.cycle} logs stay in your history and charts.`)){
-    S.cycle+=1;S.week=1;S.day='u1';save();renderAll();
+    S.cycle+=1;S.week=1;S.day='u1';touch();renderAll();
   }
 };
 $('#storageNote').textContent=store.ok()
@@ -1164,6 +1184,7 @@ document.querySelectorAll('nav button').forEach(b=>{
     document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
     $('#view-'+b.dataset.v).classList.add('on');
     if(b.dataset.v==='progress')renderProgress();
+    if(b.dataset.v==='data')renderSyncUI();
     window.scrollTo(0,0);
   };
 });
@@ -1177,7 +1198,7 @@ let memCfg=null;
 const sync={
   cfg(){ try{const raw=localStorage.getItem(SYNC_KEY); if(raw)return JSON.parse(raw);}catch(e){} return memCfg; },
   setCfg(c){ memCfg=c; try{ c?localStorage.setItem(SYNC_KEY,JSON.stringify(c)):localStorage.removeItem(SYNC_KEY);}catch(e){} },
-  status(k,msg){ const p=$('#syncStatus'); p.className='syncPill '+k; p.textContent={off:'off',on:'synced',busy:'syncing…',err:'error'}[k]; $('#syncMsg').textContent=msg||''; },
+  status(k,msg){ const p=$('#syncStatus'); p.className='syncPill '+k; p.textContent={off:'off',idle:'connected',on:'synced',busy:'working…',err:'error'}[k]; $('#syncMsg').textContent=msg||''; },
   async pull(){
     const c=this.cfg(); if(!c)return;
     this.status('busy');
@@ -1186,10 +1207,10 @@ const sync={
     if(j.error)throw new Error(j.error);
     if(j.state&&(j.state.updatedAt||0)>(S.updatedAt||0)){
       S=j.state; try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} mem=S;
-      renderAll();
-      this.status('on','Pulled newer data from the sheet.');
+      renderAll(); renderSyncUI();
+      this.status('on','Downloaded newer data from the sheet.');
     } else {
-      this.status('on');
+      this.status('on','Nothing newer on the sheet — this device is already up to date.');
     }
   },
   async push(){
@@ -1198,32 +1219,41 @@ const sync={
     const res=await fetch(c.url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({token:c.token,state:S})});
     const j=await res.json();
     if(j.error)throw new Error(j.error);
-    this.status('on','Saved to sheet '+new Date().toLocaleTimeString());
+    this.status('on','Uploaded to sheet '+new Date().toLocaleTimeString());
   }
 };
 let syncT=null;
 window.__syncQueue=()=>{ if(!sync.cfg())return; clearTimeout(syncT); syncT=setTimeout(()=>sync.push().catch(e=>sync.status('err',e.message)),2500); };
 
+function relTime(ms){
+  if(!ms)return 'never (no changes logged on this device yet)';
+  const s=Math.round((Date.now()-ms)/1000);
+  if(s<60)return 'just now';
+  const m=Math.round(s/60); if(m<60)return `${m} min ago`;
+  const h=Math.round(m/60); if(h<24)return `${h}h ago`;
+  const d=Math.round(h/24); return `${d}d ago`;
+}
 function renderSyncUI(){
   const c=sync.cfg();
   $('#syncUrl').value=c?c.url:''; $('#syncToken').value=c?c.token:'';
-  $('#btnSyncNow').style.display=c?'':'none';
-  $('#btnSyncOff').style.display=c?'':'none';
+  $('#syncActions').style.display=c?'flex':'none';
   $('#btnSyncSave').textContent=c?'Update':'Connect';
+  if(c)$('#syncMeta').textContent=`This device's data last changed: ${relTime(S.updatedAt)}`;
   if(!c)sync.status('off');
 }
-$('#btnSyncSave').onclick=async()=>{
+$('#btnSyncSave').onclick=()=>{
   const url=$('#syncUrl').value.trim(), token=$('#syncToken').value.trim();
   if(!url.startsWith('https://script.google.com/')){sync.status('err','URL should be an Apps Script /exec link.');return;}
   sync.setCfg({url,token});
   renderSyncUI();
-  try{ await sync.pull(); await sync.push(); }catch(e){ sync.status('err',e.message); }
+  sync.status('idle',"Saved. Tap Download to check the sheet, or Upload to send this device's data.");
 };
-$('#btnSyncNow').onclick=()=>sync.pull().then(()=>sync.push()).catch(e=>sync.status('err',e.message));
+$('#btnSyncPull').onclick=()=>sync.pull().catch(e=>sync.status('err',e.message));
+$('#btnSyncPush').onclick=()=>sync.push().catch(e=>sync.status('err',e.message));
 $('#btnSyncOff').onclick=()=>{ sync.setCfg(null); renderSyncUI(); sync.status('off','Disconnected — data stays on this device.'); };
 renderSyncUI();
 if(sync.cfg()){ sync.pull().catch(e=>sync.status('err',e.message)); }
-document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&sync.cfg())sync.pull().catch(()=>{}); });
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&sync.cfg()){ sync.pull().catch(()=>{}); renderSyncUI(); } });
 
 </script>
 </body>
