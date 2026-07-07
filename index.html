@@ -76,6 +76,7 @@ h1 small{display:none}
 .swapPanel{display:none;padding:10px 14px 4px;border-top:1px dashed var(--line)}
 .swapPanel.open{display:block}
 .swapPanel .swLabel{font-size:.68rem;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;font-family:var(--disp)}
+.swRename{margin-left:6px;font-family:var(--body);font-size:.68rem;font-weight:600;color:var(--accent);text-transform:none;letter-spacing:normal;border-bottom:1px dashed var(--accent-soft)}
 .swapOpts{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px}
 .swOpt{font-family:var(--body);font-size:.78rem;font-weight:500;padding:7px 12px;border-radius:var(--rf);border:1px solid var(--line2);background:var(--panel2);color:var(--bone)}
 .swOpt.cur{background:var(--accent);color:var(--on-accent);border-color:var(--accent);font-weight:700}
@@ -715,6 +716,16 @@ function slugify(s){return (s||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-
 function registerEx(id,name,muscle){
   if(!EX[id])EX[id]={n:name,m:muscle};
 }
+/* renames a custom exercise everywhere it's referenced (EX dict + every
+   slot's customSubs list) — the id never changes, so every past log entry
+   picks up the corrected name automatically since names are looked up by id. */
+function renameEx(id,newName){
+  if(EX[id])EX[id].n=newName;
+  Object.keys(S.customSubs).forEach(baseId=>{
+    S.customSubs[baseId].forEach(c=>{ if(c.id===id)c.name=newName; });
+  });
+  touch();
+}
 PROGRAM.forEach(b=>{
   Object.values(b.days).forEach(d=>{
     d.ex.forEach(x=>{
@@ -851,6 +862,7 @@ function renderExercises(){
   def.ex.forEach((x,i)=>{
     const eff=effEx(x);
     const swapped=eff!==x.e;
+    const activeCustom=(S.customSubs[x.e]||[]).find(c=>c.id===eff);
     const key=lk(S.cycle,S.week,S.day,eff);
     let log=S.logs[key];
     const nSets=setsForWeek(x,S.week);
@@ -877,7 +889,7 @@ function renderExercises(){
         <div class="spark">${sparkSVG(eff)}${deltaHTML(eff)}</div>
       </div>
       <div class="swapPanel" data-swpanel>
-        <div class="swLabel">Swap this exercise ${swapped?`— default is ${EX[x.e].n}`:'(same sets/reps/RPE prescription carries over)'}</div>
+        <div class="swLabel">Swap this exercise ${swapped?`— default is ${EX[x.e].n}`:'(same sets/reps/RPE prescription carries over)'}${activeCustom?` <button class="swRename" data-swrename>✎ Rename "${activeCustom.name}"</button>`:''}</div>
         <div class="swapOpts" data-swopts></div>
         <div class="swAddRow" data-swaddrow>
           <input type="text" placeholder="Type a new exercise name…" data-swinput>
@@ -900,6 +912,9 @@ function renderExercises(){
     const swTitle=card.querySelector('[data-swtoggle]');
     const swAddRow=card.querySelector('[data-swaddrow]');
     const swInput=card.querySelector('[data-swinput]');
+    const swSaveBtn=card.querySelector('[data-swsave]');
+    const swRenameBtn=card.querySelector('[data-swrename]');
+    let editingId=null;
     const drawSwapOpts=()=>{
       const optsEl=card.querySelector('[data-swopts]');
       optsEl.innerHTML='';
@@ -913,14 +928,36 @@ function renderExercises(){
         optsEl.appendChild(b);
       });
       const addBtn=el('button','swOpt addnew','+ New exercise');
-      addBtn.onclick=()=>{swAddRow.classList.toggle('open'); if(swAddRow.classList.contains('open'))swInput.focus();};
+      addBtn.onclick=()=>{
+        editingId=null; swSaveBtn.textContent='Add'; swInput.value='';
+        swAddRow.classList.toggle('open'); if(swAddRow.classList.contains('open'))swInput.focus();
+      };
       optsEl.appendChild(addBtn);
     };
     drawSwapOpts();
     swTitle.onclick=()=>{swTitle.classList.toggle('open'); swPanel.classList.toggle('open');};
-    card.querySelector('[data-swsave]').onclick=()=>{
+    if(swRenameBtn){
+      swRenameBtn.onclick=(ev)=>{
+        ev.stopPropagation();
+        editingId=activeCustom.id;
+        swInput.value=activeCustom.name;
+        swSaveBtn.textContent='Save';
+        swAddRow.classList.add('open');
+        swInput.focus();
+      };
+    }
+    swSaveBtn.onclick=()=>{
       const name=swInput.value.trim();
       if(!name)return;
+      if(editingId){
+        renameEx(editingId,name);
+        editingId=null;
+        swInput.value='';
+        swSaveBtn.textContent='Add';
+        swAddRow.classList.remove('open');
+        renderExercises();
+        return;
+      }
       let id=slugify(name);
       let n=2; while(EX[id]&&EX[id].n!==name){id=slugify(name)+'-'+n;n++;}
       registerEx(id,name,EX[x.e].m);
@@ -931,7 +968,7 @@ function renderExercises(){
       swInput.value='';
       renderExercises();
     };
-    swInput.addEventListener('keydown',ev=>{if(ev.key==='Enter')card.querySelector('[data-swsave]').click();});
+    swInput.addEventListener('keydown',ev=>{if(ev.key==='Enter')swSaveBtn.click();});
 
     const setsEl=card.querySelector('[data-sets]');
     const drawSets=()=>{
